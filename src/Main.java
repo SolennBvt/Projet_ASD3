@@ -11,6 +11,8 @@ public class Main {
 
             ImagePNG png = new ImagePNG("pngs/16.png");
             Quadtree q1 = new Quadtree(png);
+            q1.compressDelta(30);
+            System.out.println("compression avec degradation 30 :\n"+q1.toString());
 
         } catch (Exception e) {
 

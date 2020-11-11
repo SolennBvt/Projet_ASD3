@@ -85,34 +85,82 @@ public class Quadtree {
         }
     }
 
-    private void compress(){ //si au moins 2x2 px -> faudrait tester dans l'appel de cette méthode dans le constructeur pr éviter l'erreur si une img de 1px!!
+    private boolean compress(){ //si au moins 2x2 px -> faudrait tester dans l'appel de cette méthode dans le constructeur pr éviter l'erreur si une img de 1px!!
 
-        if(childs[0].color != null){
+        if(childs[0].color != null && childs[1].color != null && childs[2].color != null && childs[3].color != null){
 
             boolean isSameColor = true;
             int i = 1;
             Color comp = childs[0].color;
 
             while(i < 4 && isSameColor){
-                Color temp = childs[i].color;
-                isSameColor = (comp.getRGB() == temp.getRGB());
+                isSameColor = (comp.getRGB() == childs[i].color.getRGB());
                 i++;
             }
 
-            if(isSameColor){
+            if(isSameColor) {
                 color = comp;
-                for(int j = 0; j < 4; j++){
+                for (int j = 0; j < 4; j++) {
                     childs[j] = null;
                 }
+                return true;
             }
 
         } else {
 
             for(int i = 0; i < 4; i++){
-                childs[i].compress();
+                if(childs[i].color == null){
+                    if(childs[i].compress()){
+                        return compress();
+                    }
+                }
             }
-            compress();
         }
+        return false ;
+    }
+
+
+    public boolean compressDelta(double delta) {
+
+        if(childs[0].color != null && childs[1].color != null && childs[2].color != null && childs[3].color != null){
+            float rm = 0, vm = 0, bm = 0;
+            boolean isCompressAble = true ;
+
+            for(int i = 0 ; i < 4 ; ++i){
+                rm += childs[i].color.getRed();
+                vm += childs[i].color.getGreen();
+                bm += childs[i].color.getBlue();
+            }
+
+            rm = rm/4;
+            vm = vm/4;
+            bm = bm/4;
+
+            for(int i = 0 ; i < 4 && isCompressAble ; ++i){
+                if(Math.sqrt((Math.pow(childs[i].color.getRed()-rm,2)+Math.pow(childs[i].color.getGreen()-rm,2)+Math.pow(childs[i].color.getBlue()-rm,2))/3) > delta){
+                    isCompressAble = false ;
+                }
+            }
+
+            if (isCompressAble) {
+                color = new Color((int)rm,(int)vm,(int)bm);
+                for (int j = 0; j < 4; j++) {
+                    childs[j] = null;
+                }
+                return true ;
+            }
+
+        } else {
+
+            for(int i = 0; i < 4; i++){
+                if(childs[i].color == null){
+                    if(childs[i].compressDelta(delta)){
+                        return compressDelta(delta);
+                    }
+                }
+            }
+        }
+        return false ;
     }
 
     public String toString(){
