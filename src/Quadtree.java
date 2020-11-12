@@ -1,4 +1,6 @@
 import java.awt.*;
+import java.util.ArrayList;
+
 
 public class Quadtree {
 
@@ -60,6 +62,8 @@ public class Quadtree {
     public Color getColor(){
         return this.color;
     }
+
+    public void setColor(Color value){this.color = value;}
 
     //méthodes
     private void subQuadtree(ImagePNG img, int x, int y, int pas){
@@ -162,6 +166,113 @@ public class Quadtree {
         }
         return false ;
     }
+
+    private class PhiStorage{
+        public float delta ;
+        public Quadtree target;
+        public PhiStorage father ;
+        public Color moyColor ;
+        public int childNumber ;
+
+        public PhiStorage(float delta, Quadtree target, PhiStorage father, Color moyColor, int childNumber){
+            this.delta = delta ;
+            this.target = target ;
+            this.father = father ;
+            this.moyColor = moyColor ;
+            this.childNumber = childNumber ;
+        }
+    }
+
+    public void compressPhi(int phi) {
+        ArrayList<PhiStorage> deltas = new ArrayList<PhiStorage>();
+        compressPhi(deltas, null);
+
+        while(deltas.size() > phi){
+
+            float minDelta = deltas.get(0).delta ;
+            int minIndex = 0 ;
+            for(int i = 1 ; i < deltas.size() ; ++i){
+                if(deltas.get(i).delta < minDelta && deltas.get(i).childNumber == 0){
+                    minDelta = deltas.get(i).delta;
+                    minIndex = i ;
+                }
+            }
+
+            System.out.println("suppr : "+deltas.get(minIndex).father.childNumber);
+
+            for(int i = 0 ; i < 4 ; ++i) {
+                deltas.get(minIndex).target.childs[i] = null;
+            }
+            deltas.get(minIndex).target.setColor(deltas.get(minIndex).moyColor) ;
+
+            System.out.println(deltas.get(minIndex).target.color);
+
+            if(deltas.get(minIndex).father != null){
+                deltas.get(minIndex).father.childNumber -- ;
+                if(deltas.get(minIndex).father.childNumber <= 0){
+
+                    System.out.println("try add");
+                    System.out.println(deltas.get(minIndex).father.target.toString());
+                    System.out.println(deltas.get(minIndex).target.toString());
+                    System.out.println("------");
+
+                    deltas.get(minIndex).father.target.compressPhi(deltas,deltas.get(minIndex).father.father);
+                }
+            }
+            deltas.remove(minIndex);
+
+        }
+
+    }
+
+    private Color compressPhi(ArrayList<PhiStorage> deltas, PhiStorage father) {
+
+        float rm = 0, vm = 0, bm = 0;
+        float maxDelta = 0 ;
+        int childNumber = 0 ;
+        Color temp = null;
+        PhiStorage thisStorage = new PhiStorage(0,this, father,null, 0);
+
+        System.out.println("test");
+        System.out.println(thisStorage.target.toString());
+
+        System.out.println(childs[0].color);
+        System.out.println(childs[1].color);
+        System.out.println(childs[2].color);
+        System.out.println(childs[3].color);
+        System.out.println("------");
+
+        for(int i = 0 ; i < 4 ; ++i) {
+
+            if (childs[i].color != null) {
+                temp = childs[i].color ;
+            } else {
+                childNumber ++;
+                temp = childs[i].compressPhi(deltas, thisStorage);
+            }
+
+            rm += temp.getRed();
+            vm += temp.getGreen();
+            bm += temp.getBlue();
+
+        }
+
+        rm = rm/4;
+        vm = vm/4;
+        bm = bm/4;
+
+        for(int i = 0 ; i < 4 ; ++i){
+            maxDelta = Math.max((float)Math.sqrt((Math.pow(temp.getRed()-rm,2)+Math.pow(temp.getGreen()-rm,2)+Math.pow(temp.getBlue()-rm,2))/3),maxDelta);
+        }
+        thisStorage.delta = maxDelta ;
+        thisStorage.moyColor = new Color((int)rm,(int)vm,(int)bm) ;
+        thisStorage.childNumber = childNumber ;
+
+        deltas.add(thisStorage);
+
+        return thisStorage.moyColor ;
+    }
+
 
     public String toString(){
 
