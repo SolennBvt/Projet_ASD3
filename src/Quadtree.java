@@ -167,93 +167,59 @@ public class Quadtree {
         return false ;
     }
 
-    private class PhiStorage{
-        public float delta ;
+    private class PhiPair{
+        public double delta ;
         public Quadtree target;
-        public PhiStorage father ;
-        public Color moyColor ;
-        public int childNumber ;
+        public Color compressedColor;
 
-        public PhiStorage(float delta, Quadtree target, PhiStorage father, Color moyColor, int childNumber){
+        public PhiPair(double delta, Quadtree target, Color compressedColor){
             this.delta = delta ;
             this.target = target ;
-            this.father = father ;
-            this.moyColor = moyColor ;
-            this.childNumber = childNumber ;
+            this.compressedColor = compressedColor ;
         }
     }
 
     public void compressPhi(int phi) {
-        ArrayList<PhiStorage> deltas = new ArrayList<PhiStorage>();
-        compressPhi(deltas, null);
 
-        while(deltas.size() > phi){
+        ArrayList<PhiPair> pairs = new ArrayList<PhiPair>();
+        
+        compressPhi(pairs);
 
-            float minDelta = deltas.get(0).delta ;
-            int minIndex = 0 ;
-            for(int i = 1 ; i < deltas.size() ; ++i){
-                if(deltas.get(i).delta < minDelta && deltas.get(i).childNumber == 0){
-                    minDelta = deltas.get(i).delta;
-                    minIndex = i ;
-                }
-            }
+        while(getSize() > phi){ //parcour total de l'arbre a chaque getSize !
 
-            System.out.println("suppr : "+deltas.get(minIndex).father.childNumber);
-
-            for(int i = 0 ; i < 4 ; ++i) {
-                deltas.get(minIndex).target.childs[i] = null;
-            }
-            deltas.get(minIndex).target.setColor(deltas.get(minIndex).moyColor) ;
-
-            System.out.println(deltas.get(minIndex).target.color);
-
-            if(deltas.get(minIndex).father != null){
-                deltas.get(minIndex).father.childNumber -- ;
-                if(deltas.get(minIndex).father.childNumber <= 0){
-
-                    System.out.println("try add");
-                    System.out.println(deltas.get(minIndex).father.target.toString());
-                    System.out.println(deltas.get(minIndex).target.toString());
-                    System.out.println("------");
-
-                    deltas.get(minIndex).father.target.compressPhi(deltas,deltas.get(minIndex).father.father);
-                }
-            }
-            deltas.remove(minIndex);
+            pairs.get(0).target.phiCompressThis(pairs.get(0).compressedColor);
+            pairs.remove(0);
 
         }
 
+
     }
 
-    private Color compressPhi(ArrayList<PhiStorage> deltas, PhiStorage father) {
+    private PhiPair compressPhi(ArrayList<PhiPair> pairs){
 
+        PhiPair newPair ;
+        Color temp[] = new Color[4] ;
+        ArrayList<PhiPair> dependances = new ArrayList<PhiPair>();
         float rm = 0, vm = 0, bm = 0;
-        float maxDelta = 0 ;
-        int childNumber = 0 ;
-        Color temp = null;
-        PhiStorage thisStorage = new PhiStorage(0,this, father,null, 0);
-
-        System.out.println("test");
-        System.out.println(thisStorage.target.toString());
-
-        System.out.println(childs[0].color);
-        System.out.println(childs[1].color);
-        System.out.println(childs[2].color);
-        System.out.println(childs[3].color);
-        System.out.println("------");
+        double delta = 0;
 
         for(int i = 0 ; i < 4 ; ++i) {
 
             if (childs[i].color != null) {
-                temp = childs[i].color ;
+
+                temp[i] = childs[i].color ;
+
             } else {
-                childNumber ++;
-                temp = childs[i].compressPhi(deltas, thisStorage);
+
+                PhiPair childPair = childs[i].compressPhi(pairs);
+                temp[i] = childPair.compressedColor;
+                dependances.add(childPair);
+
             }
 
-            rm += temp.getRed();
-            vm += temp.getGreen();
-            bm += temp.getBlue();
+            rm += temp[i].getRed();
+            vm += temp[i].getGreen();
+            bm += temp[i].getBlue();
 
         }
 
@@ -261,18 +227,43 @@ public class Quadtree {
         vm = vm/4;
         bm = bm/4;
 
-        for(int i = 0 ; i < 4 ; ++i){
-            maxDelta = Math.max((float)Math.sqrt((Math.pow(temp.getRed()-rm,2)+Math.pow(temp.getGreen()-rm,2)+Math.pow(temp.getBlue()-rm,2))/3),maxDelta);
+        for(int i = 0 ; i < 4 ; ++i) {
+
+            delta = Math.max(Math.sqrt((Math.pow(temp[i].getRed() - rm, 2) + Math.pow(temp[i].getGreen() - rm, 2) + Math.pow(temp[i].getBlue() - rm, 2)) / 3), delta);
+
         }
-        thisStorage.delta = maxDelta ;
-        thisStorage.moyColor = new Color((int)rm,(int)vm,(int)bm) ;
-        thisStorage.childNumber = childNumber ;
 
-        deltas.add(thisStorage);
+        int index = 0 ;
 
-        return thisStorage.moyColor ;
+        while(dependances.size() >0){
+
+            for(int i = 0 ; i < dependances.size() ; ++i){
+                if(pairs.get(index).equals(dependances.get(i))){
+                    dependances.remove(i);
+                }
+            }
+            index++ ;
+
+        }
+
+        while(index < pairs.size() && pairs.get(index).delta < delta){
+            index ++ ;
+        }
+
+        newPair = new PhiPair(delta,this, new Color((int)rm,(int)vm,(int)bm));
+        pairs.add(index,newPair);
+        return newPair ;
+
     }
 
+    private void phiCompressThis(Color localColor){
+
+        color = localColor ;
+        for(int i = 0 ; i < 4 ; ++i){
+            childs[i] =  null ;
+        }
+
+    }
 
     public String toString(){
 
@@ -283,50 +274,20 @@ public class Quadtree {
         }
     }
 
-    /*
-    private Quadtree compress(Quadtree qd_tree){    }
-    public ? compressDelta(Quadtree qd_tree){}
-    public ? compressPhi(Quadtree qd_tree){}
-    public ImagePNG toPNG(Quadtree qd_tree){}
-    public ? toString(){
-        //ImagePNG.colorToHex pr obtenir l'hex de la couleur
+    public int getSize(){
 
-
-    }
-    */
-
-
-
-
-    /* MAEL
-    //constructeurs
-    public Quadtree(ImagePNG img){
-        int k = log(img.width(),2)+1;
-        int matrice[][] = {{0,0},{1,0},{1,1},{0,1}};
-        for(int i = 0 ; i < childs.length ; ++i){
-            childs[i] = new Quadtree(img,matrice[i][0]*img.width()/2,matrice[i][1]*img.height()/2,4);
-        }
-    }
-
-    private Quadtree(ImagePNG img,int x, int y,int j){
-        if(j == img.width()){
+        int size = 0 ;
+        if(childs[0] == null){
+            size ++ ;
+        } else {
             for(int i = 0 ; i < 4 ; ++i){
-                childs[i] = null ;
-            }
-            color = img.getPixel(x,y);
-        }else{
-            int matrice[][] = {{0,0},{1,0},{1,1},{0,1}};
-            for(int i = 0 ; i < childs.length ; ++i){
-                childs[i] = new Quadtree(img,x+((matrice[i][0]*img.width())/j),y+((matrice[i][1]*img.height())/j),j*2);
+                size+= childs[i].getSize();
             }
         }
+        return size ;
+
     }
 
-    //accesseurs
-    public Quadtree getChild(int value){
-        return childs[value];
-    }
-*/
     //library
     public static int log(int x, int b){
         return (int) (Math.log(x) / Math.log(b));
