@@ -30,6 +30,7 @@ public class Main {
             System.out.println(num + " - " + T[num][0]);
         }
     }
+
     public static void afficherDemande(int num){
         System.out.println(T[num][1]);
     }
@@ -37,12 +38,14 @@ public class Main {
         System.out.print("--> ");
         return sc.nextLine();
     }
+
     public static int lireReponseInt(){
         System.out.print("--> ");
         int toReturn =  sc.nextInt();
         sc.nextLine();
         return toReturn;
     }
+
     public static void actualiserMenu(int numero){
         aAfficher.clear();
         switch(numero){
@@ -88,9 +91,11 @@ public class Main {
                 break;
         }
     }
+
     public static boolean verifReponse(int numero){
         return aAfficher.contains(numero);
     }
+
     public static boolean verifReponse(int numero, int valeur){
         if(numero == 1){
             return valeur > 0 && valeur < 255;
@@ -100,6 +105,7 @@ public class Main {
             return true;
         }
     }
+
     public static void createQuadtree(String path){
 
         try{
@@ -114,6 +120,7 @@ public class Main {
             e.printStackTrace();
         }
     }
+
     public static void delta(int valeur){
         qdTree_delta = new Quadtree(png, 0, 0, png.height());
         qdTree_delta.compressDelta(valeur);
@@ -121,6 +128,7 @@ public class Main {
         System.out.println(qdTree_delta.toString());
         System.out.println();
     }
+
     public static void phi(int valeur){
         qdTree_phi = new Quadtree(png, 0, 0, png.height());
         qdTree_phi.compressPhi(valeur);
@@ -128,6 +136,7 @@ public class Main {
         System.out.println(qdTree_phi.toString());
         System.out.println();
     }
+
     public static void saveToPNG(int val){
         String newFileName = "";
         try {
@@ -151,6 +160,7 @@ public class Main {
         }
 
     }
+
     public static void saveToTXT(int val){
 
         String newFileName = "";
@@ -186,9 +196,11 @@ public class Main {
         }
 
     }
+
     public static void comparePNG(){
 
     }
+
     public static void execFonction(int numero, int val){
         switch(numero){
             case 1:
@@ -207,6 +219,7 @@ public class Main {
                 break;
         }
     }
+
     public static String nomFichier(String path){
         boolean findDeb = false;
         boolean findEnd = false;
@@ -230,9 +243,7 @@ public class Main {
         return toReturn;
     }
 
-
-    public static void main( String[] args )
-    {
+    public static void main( String[] args ) {
 
         try {
 
@@ -314,6 +325,51 @@ public class Main {
                 }
 
             } else if (args.length == 3) {
+
+                int delta = 0 , phi = 0 ;
+
+                try{
+
+                    png = new ImagePNG(args[0]);
+                    fileName = nomFichier(args[0]);
+
+                }catch (Exception e){
+
+                    System.out.println("le premier argument doit etre un chemin vers une image valide au format 2^n×2^n");
+
+                }
+
+                try{
+
+                    delta = Integer.parseInt(args[1]);
+                    phi = Integer.parseInt(args[2]);
+
+                }catch (Exception e){
+
+                    System.out.println("l'argument delta doit etre au format flotant er l'argument phi au format entier");
+
+                }
+
+                prevCompress = 1 ;
+                delta(delta);
+                saveToPNG(delta);
+                prevCompress = 2 ;
+                phi(phi);
+                saveToPNG(phi);
+
+                double siD = ImagePNG.computeEQM(png,png_delta);
+                double siP = ImagePNG.computeEQM(png,png_phi);
+
+                File fic = new File(args[0]);
+                File ficD =  new File("results/" + fileName + "-delta" + phi +".png");
+                File ficP =  new File("results/" + fileName + "-phi" + phi +".png");
+
+                double wD = Math.ceil(10000.0*ficD.length() / fic.length())/100.0;
+                double wP = Math.ceil(10000.0*ficP.length() / fic.length())/100.0;
+
+
+                System.out.println("delta : taille="+wD+"% / qualité="+siD+"%");
+                System.out.println("phy : taille="+wP+"% / qualité="+siP+"%");
 
             } else {
 
