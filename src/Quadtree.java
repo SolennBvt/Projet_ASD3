@@ -1,268 +1,171 @@
 import java.awt.*;
-import java.util.ArrayList;
-
-
 public class Quadtree {
 
     //attributs
-    private Quadtree childs[] = new Quadtree[4];
+    private Quadtree childs[];
     private Color color ;
     private ImagePNG img;
 
-    //constructeurs
-    public Quadtree(ImagePNG img){
-        System.out.println("//Quadtree(img)//");
-
+    //constructeur
+    public Quadtree(ImagePNG img, int x, int y, int length){
         this.img = img;
-
-        int n = log(img.width(),2); //taille de l'arbre
-        System.out.println("taille de l'arbre : " + n);
-
-        if(n == 0){
-            System.out.println("taille de l'arbre = 0 ");
-            this.color = img.getPixel(0,0);
-            System.out.println("1 seul pixel : " + color);
-
+        this.childs = new Quadtree[4];
+        if(isSameColor(img, x, y, length)){
+            this.color = img.getPixel(x, y);
         } else {
-
-            //(x,y) milieu de l'image
-            int x = (int) Math.pow(2, n-1);
-            int y = x;
-            System.out.println("milieu : (" + x + ", " + y + ")" );
-
-            //l'écart (le "pas") entre le milieu de la grande case et celui de la sous-case
-            int pas = (int) Math.pow(2, n-2);
-            System.out.println("pas : " + pas);
-
-            //construction des sous-quadtree
-            System.out.println("construction des sous-quadtree");
-            subQuadtree(img, x, y, pas);
-
-            //compression sans dégradation du quadtree obtenu
-            System.out.println("Avant compression : ");
-            System.out.println(toString());
-            compress();
-            System.out.println("Après compression sans dégradation : ");
-            System.out.println(toString());
-        }
-    }
-
-    private Quadtree(ImagePNG img, Color color){
-        System.out.println("//Quadtree(img , color)//");
-        this.img = img;
-        this.color = color;
-    }
-
-    private Quadtree(ImagePNG img, int x, int y, int pas){
-        System.out.println("//Quadtree(img, x, y, pas)//");
-        subQuadtree(img, x, y, pas);
-    }
-
-    //accesseurs
-    public Color getColor(){
-        return this.color;
-    }
-
-    public void setColor(Color value){this.color = value;}
-
-    //méthodes
-    private void subQuadtree(ImagePNG img, int x, int y, int pas){
-        System.out.println("//subQuadtree//");
-
-        if(pas < 1){
-            //création de 4 feuilles
-            System.out.println("Création de 4 feuilles");
-            int matrice[][] = {{-1,-1},{0,-1},{0,0},{-1,0}};
-            for(int i = 0 ; i < childs.length ; i++){
-                System.out.println("Feuille " + i);
-                childs[i] = new Quadtree(img, img.getPixel(x + matrice[i][0], y + matrice[i][1]));
-                System.out.println(i + " : " + img.getPixel(x + matrice[i][0], y + matrice[i][1]));
-            }
-        } else {
-            //création de 4 noeuds
-            System.out.println("Création de 4 noeuds");
-            int matrice[][] = {{-1,-1},{1,-1},{1,1},{-1,1}};
-            for(int i = 0 ; i < childs.length ; i++){
-                System.out.println("Noeud " + i);
-                childs[i] = new Quadtree(img, x + matrice[i][0] * pas, y + matrice[i][1] * pas, pas/2);
-            }
-        }
-    }
-
-    private boolean compress(){ //si au moins 2x2 px -> faudrait tester dans l'appel de cette méthode dans le constructeur pr éviter l'erreur si une img de 1px!!
-
-        if(childs[0].color != null && childs[1].color != null && childs[2].color != null && childs[3].color != null){
-
-            boolean isSameColor = true;
-            int i = 1;
-            Color comp = childs[0].color;
-
-            while(i < 4 && isSameColor){
-                isSameColor = (comp.getRGB() == childs[i].color.getRGB());
-                i++;
-            }
-
-            if(isSameColor) {
-                color = comp;
-                for (int j = 0; j < 4; j++) {
-                    childs[j] = null;
-                }
-                return true;
-            }
-
-        } else {
-
+            int pas = length /2;
+            int matrice[][] = {{0,0},{1,0},{1,1},{0,1}}; // NO, NE, SE, SO
             for(int i = 0; i < 4; i++){
-                if(childs[i].color == null){
-                    if(childs[i].compress()){
-                        return compress();
-                    }
-                }
+                this.childs[i] = new Quadtree(img, x + matrice[i][0] * pas, y + matrice[i][1] * pas, pas);
             }
-        }
-        return false ;
-    }
-
-
-    public boolean compressDelta(double delta) {
-
-        if(childs[0].color != null && childs[1].color != null && childs[2].color != null && childs[3].color != null){
-            float rm = 0, vm = 0, bm = 0;
-            boolean isCompressAble = true ;
-
-            for(int i = 0 ; i < 4 ; ++i){
-                rm += childs[i].color.getRed();
-                vm += childs[i].color.getGreen();
-                bm += childs[i].color.getBlue();
-            }
-
-            rm = rm/4;
-            vm = vm/4;
-            bm = bm/4;
-
-            for(int i = 0 ; i < 4 && isCompressAble ; ++i){
-                if(Math.sqrt((Math.pow(childs[i].color.getRed()-rm,2)+Math.pow(childs[i].color.getGreen()-rm,2)+Math.pow(childs[i].color.getBlue()-rm,2))/3) > delta){
-                    isCompressAble = false ;
-                }
-            }
-
-            if (isCompressAble) {
-                color = new Color((int)rm,(int)vm,(int)bm);
-                for (int j = 0; j < 4; j++) {
-                    childs[j] = null;
-                }
-                return true ;
-            }
-
-        } else {
-
-            for(int i = 0; i < 4; i++){
-                if(childs[i].color == null){
-                    if(childs[i].compressDelta(delta)){
-                        return compressDelta(delta);
-                    }
-                }
-            }
-        }
-        return false ;
-    }
-
-    private class PhiPair{
-        public double delta ;
-        public Quadtree target;
-        public Color compressedColor;
-
-        public PhiPair(double delta, Quadtree target, Color compressedColor){
-            this.delta = delta ;
-            this.target = target ;
-            this.compressedColor = compressedColor ;
         }
     }
 
-    public void compressPhi(int phi) {
+    private boolean isSameColor(ImagePNG img, int x, int y, int length){
 
-        ArrayList<PhiPair> pairs = new ArrayList<PhiPair>();
-        
-        compressPhi(pairs);
+        Color previousColor = img.getPixel(x, y);
+        Color actualColor;
+        int col = x + 1;
+        int line = y;
 
-        while(getSize() > phi){ //parcour total de l'arbre a chaque getSize !
+        while((col < x + length) && (line < y + length)){
 
-            pairs.get(0).target.phiCompressThis(pairs.get(0).compressedColor);
-            pairs.remove(0);
+            actualColor = img.getPixel(col, line);
 
-        }
-
-
-    }
-
-    private PhiPair compressPhi(ArrayList<PhiPair> pairs){
-
-        PhiPair newPair ;
-        Color temp[] = new Color[4] ;
-        ArrayList<PhiPair> dependances = new ArrayList<PhiPair>();
-        float rm = 0, vm = 0, bm = 0;
-        double delta = 0;
-
-        for(int i = 0 ; i < 4 ; ++i) {
-
-            if (childs[i].color != null) {
-
-                temp[i] = childs[i].color ;
-
+            if(actualColor.getRGB() != previousColor.getRGB()){
+                return false;
             } else {
-
-                PhiPair childPair = childs[i].compressPhi(pairs);
-                temp[i] = childPair.compressedColor;
-                dependances.add(childPair);
-
-            }
-
-            rm += temp[i].getRed();
-            vm += temp[i].getGreen();
-            bm += temp[i].getBlue();
-
-        }
-
-        rm = rm/4;
-        vm = vm/4;
-        bm = bm/4;
-
-        for(int i = 0 ; i < 4 ; ++i) {
-
-            delta = Math.max(Math.sqrt((Math.pow(temp[i].getRed() - rm, 2) + Math.pow(temp[i].getGreen() - rm, 2) + Math.pow(temp[i].getBlue() - rm, 2)) / 3), delta);
-
-        }
-
-        int index = 0 ;
-
-        while(dependances.size() >0){
-
-            for(int i = 0 ; i < dependances.size() ; ++i){
-                if(pairs.get(index).equals(dependances.get(i))){
-                    dependances.remove(i);
+                col++;
+                if(col == x + length) {
+                    col = x;
+                    line++;
                 }
             }
-            index++ ;
-
         }
-
-        while(index < pairs.size() && pairs.get(index).delta < delta){
-            index ++ ;
-        }
-
-        newPair = new PhiPair(delta,this, new Color((int)rm,(int)vm,(int)bm));
-        pairs.add(index,newPair);
-        return newPair ;
-
+        return true;
     }
 
-    private void phiCompressThis(Color localColor){
-
-        color = localColor ;
-        for(int i = 0 ; i < 4 ; ++i){
-            childs[i] =  null ;
+    //retourne la hauteur/profondeur de l'arbre (compressé sans dégradation lors de la construction)
+    private int height(){
+    boolean bool = false;
+    int h = 0;
+    for(int i = 0; i < 4; i++){
+        if(this.childs[i] != null){
+            bool = true;
+            h = Math.max(h, this.childs[i].height());
         }
+    }
+    if(bool){
+        h++;
+    }
+    return h;
+}
+    public void compressDelta(int delta){
+        int h = this.height();
+        for(int i = 0; i < h; i++){
+            compressDelta_rec(delta, h - i);
+        }
+    }
+    private void compressDelta_rec(int delta, int cpt){
 
+        if(this.childs[0] != null){ // on est à un noeud
+            float rm = 0, gm = 0, bm = 0;
+            int r, g, b;
+            boolean isCompressable = true;
+
+            if(this.childs[0].color != null && this.childs[1].color != null && this.childs[2].color != null && this.childs[3].color != null){ // tous les enfants sont des feuilles
+
+                for(int i = 0 ; i < 4 ; i++){
+                    rm += childs[i].color.getRed();
+                    gm += childs[i].color.getGreen();
+                    bm += childs[i].color.getBlue();
+                }
+                rm = rm/4;
+                gm = gm/4;
+                bm = bm/4;
+
+                for(int i = 0; i < 4; i++){
+                    r = childs[i].color.getRed();
+                    g = childs[i].color.getGreen();
+                    b = childs[i].color.getBlue();
+
+                    if(Math.sqrt((Math.pow(r - rm, 2) + Math.pow(g - gm, 2) + Math.pow(b - bm, 2)) /3) > delta){
+                        isCompressable = false;
+                    }
+                }
+                if(isCompressable){
+                    color = new Color((int)rm,(int)gm,(int)bm);
+                    for (int i = 0; i < 4; i++) {
+                        childs[i] = null;
+                    }
+                }
+            } else { // tous les enfants ne sont pas des feuilles
+                if(cpt > 1){
+                    for(int i = 0; i < 4; i++){
+                        if(childs[i].color == null){
+                            childs[i].compressDelta_rec(delta, cpt-1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public boolean compressPhi(int phi){
+        return false;
+    }
+
+    public ImagePNG toPNG(){
+
+        ImagePNG png = new ImagePNG(this.img);
+        modifPNG(png, 0, 0, this.img.height());
+
+        return png;
+    }
+    private void modifPNG(ImagePNG png, int x, int y, int squareSize){
+
+        if (this.color != null) { // feuille ou noeud compressé
+
+            if (squareSize == 1) { // carré de 1px -> feuille
+                png.setPixel(x, y, this.color);
+
+            } else { // noeud compressé
+
+                int col = x; int line = y;
+                int xMax = x + squareSize - 1;
+                int yMax = y + squareSize - 1;
+
+                while((col < xMax) || (line < yMax)){
+
+                    png.setPixel(col, line, this.color);
+
+                    if(col == xMax){ // on a fini la ligne, on passe à la suivante
+                        col = x;
+                        line++;
+
+                    } else { // on continue la ligne
+                        col++;
+                    }
+                }
+                png.setPixel(col, line, this.color);
+
+            }
+        } else { // noeud
+            /*
+            Img divisée en 4 sous-carrés avec une nouvelle taille = ancienne /2, nouvelles coordonnées :
+            NO -> x,y
+            NE -> x + taille, y
+            SE -> x + taille, y + taille
+            SO -> x, y + taille
+             */
+            int matrix[][] = {{0,0},{1,0},{1,1},{0,1}}; // NO -> childs[0], NE -> childs[1], SE-> childs[2], SO-> childs[3]
+            int newSquareSize = squareSize /2;
+
+            for(int i = 0; i < 4; i++) {
+
+                this.childs[i].modifPNG(png, x + matrix[i][0] * newSquareSize, y + matrix[i][1] * newSquareSize, newSquareSize );
+            }
+        }
     }
 
     public String toString(){
@@ -274,24 +177,9 @@ public class Quadtree {
         }
     }
 
-    public int getSize(){
-
-        int size = 0 ;
-        if(childs[0] == null){
-            size ++ ;
-        } else {
-            for(int i = 0 ; i < 4 ; ++i){
-                size+= childs[i].getSize();
-            }
-        }
-        return size ;
-
-    }
-
     //library
     public static int log(int x, int b){
         return (int) (Math.log(x) / Math.log(b));
     }
-
 
 }
