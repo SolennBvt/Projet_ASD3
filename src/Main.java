@@ -262,23 +262,6 @@ public class Main {
         }
     }
 
-/*
-    double siD = ImagePNG.computeEQM(png,png_delta);
-    double siP = ImagePNG.computeEQM(png,png_phi);
-
-    File fic = new File(args[0]);
-    File ficD =  new File("results/" + fileName + "-delta" + delta + ".png");
-    File ficP =  new File("results/" + fileName + "-phi" + phi + ".png");
-
-    double wD = Math.ceil(10000.0*ficD.length() / fic.length())/100.0;
-    double wP = Math.ceil(10000.0*ficP.length() / fic.length())/100.0;
-
-
-    System.out.println("delta : rapport de poids = "+wD+"% / qualité = "+siD+"%");
-    System.out.println("phy : rapport de poids = "+wP+"% / qualité = "+siP+"%");
-
- */
-
     // entrée clavier et vérif
     public static String lireReponseString(){
         System.out.print("--> ");
