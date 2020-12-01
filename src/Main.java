@@ -11,7 +11,7 @@ public class Main {
     public static Scanner sc = new Scanner(System.in);
     public static ArrayList<Integer> aAfficher = new ArrayList<Integer>();
     public static int prevCompress;
-    public static String fileName;
+    public static String fileName, initialFileName;
     public static ImagePNG png, png_delta, png_phi;
     public static Quadtree qdTree, qdTree_delta, qdTree_phi;
 
@@ -97,6 +97,7 @@ public class Main {
         switch(numero){
             case 0:
                 fileName = lireReponseString();
+                initialFileName = fileName ;
                 createQuadtree(fileName);
                 fileName = nomFichier(fileName);
                 break;
@@ -245,7 +246,7 @@ public class Main {
 
     public static void comparePNG(int val){
 
-        File fic = new File(fileName);
+        File fic = new File(initialFileName);
 
         if(prevCompress == 1) {
             double siD = ImagePNG.computeEQM(png,png_delta);
@@ -260,6 +261,23 @@ public class Main {
             System.out.println("phy : rapport de poids = "+wP+"% / qualité = "+siP+"%");
         }
     }
+
+/*
+    double siD = ImagePNG.computeEQM(png,png_delta);
+    double siP = ImagePNG.computeEQM(png,png_phi);
+
+    File fic = new File(args[0]);
+    File ficD =  new File("results/" + fileName + "-delta" + delta + ".png");
+    File ficP =  new File("results/" + fileName + "-phi" + phi + ".png");
+
+    double wD = Math.ceil(10000.0*ficD.length() / fic.length())/100.0;
+    double wP = Math.ceil(10000.0*ficP.length() / fic.length())/100.0;
+
+
+    System.out.println("delta : rapport de poids = "+wD+"% / qualité = "+siD+"%");
+    System.out.println("phy : rapport de poids = "+wP+"% / qualité = "+siP+"%");
+
+ */
 
     // entrée clavier et vérif
     public static String lireReponseString(){
