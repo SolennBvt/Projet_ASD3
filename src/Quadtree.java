@@ -4,25 +4,47 @@ import java.util.ArrayList;
 public class Quadtree {
 
     //attributs
+
     private Quadtree childs[];
     private Color color ;
     private ImagePNG img;
 
     //constructeur
+
+    /*
+         * Appel constructeur : new Quadtre(img, 0, 0, img.length);
+         */
     public Quadtree(ImagePNG img, int x, int y, int length){
+
         this.img = img;
         this.childs = new Quadtree[4];
-        if(isSameColor(img, x, y, length)){
+
+        if(isSameColor(img, x, y, length)){ //si tous les pixels de la zone concernée sont de la même couleur alors on crée une feuille
+
             this.color = img.getPixel(x, y);
-        } else {
-            int pas = length /2;
-            int matrice[][] = {{0,0},{1,0},{1,1},{0,1}}; // NO, NE, SE, SO
+
+        } else { //sinon création d'un noeud -> on divise la zone en 4 sous-région N0, NE, SE, SO
+
+            int pas = length /2; //taille du sous-carré
+            int matrice[][] = {{0,0},{1,0},{1,1},{0,1}}; //matrice servant à calculer les nouvelles coordonnées (x, y) des sous-régions
+
             for(int i = 0; i < 4; i++){
-                this.childs[i] = new Quadtree(img, x + matrice[i][0] * pas, y + matrice[i][1] * pas, pas);
+
+                this.childs[i] = new Quadtree(img, x + matrice[i][0] * pas, y + matrice[i][1] * pas, pas); //création des quatre fils correspondant aux sous-régions
             }
         }
     }
 
+    //méthodes
+
+    /*
+     * Retourne si les pixels sont tous de la même couleur dans une sous-partie carrée d'une image
+     *
+     * @param ImagePNG img : image à examiner
+     * @param int x, y : coordonnée (x, y) en haut à gauche du carré
+     * @param int length : taille du côté du carré
+     * @return : booleen
+     */
     private boolean isSameColor(ImagePNG img, int x, int y, int length){
 
         Color previousColor = img.getPixel(x, y);
@@ -35,10 +57,15 @@ public class Quadtree {
             actualColor = img.getPixel(col, line);
 
             if(actualColor.getRGB() != previousColor.getRGB()){
+
                 return false;
+
             } else {
+
                 col++;
+
                 if(col == x + length) {
+
                     col = x;
                     line++;
                 }
@@ -47,37 +74,33 @@ public class Quadtree {
         return true;
     }
 
-    //retourne la hauteur/profondeur de l'arbre (compressé sans dégradation lors de la construction)
-    private int height(){
-    boolean bool = false;
-    int h = 0;
-    for(int i = 0; i < 4; i++){
-        if(this.childs[i] != null){
-            bool = true;
-            h = Math.max(h, this.childs[i].height());
-        }
-    }
-    if(bool){
-        h++;
-    }
-    return h;
-}
+    /*
+     * Effectue la compression delta avec dégradation du quadtree selon une dégradation maximale autorisée
+     * @param int delta : dégradation maximale autorisée, compris entre 0 et 255 (ou 192? --> deux valeurs différentes dans le sujet)
+     */
     public void compressDelta(int delta){
-        int h = this.height();
-        for(int i = 0; i < h; i++){
-            compressDelta_rec(delta, h - i);
-        }
-    }
 
-    private void compressDelta_rec(int delta, int cpt){
+        if(this.color == null){ //on est à un noeud
 
-        if(this.childs[0] != null){ // on est à un noeud
-            float rm = 0, gm = 0, bm = 0;
-            int r, g, b;
+            for(int i = 0; i < 4; i++){ //pour chaque fils
+
+                if(this.childs[i].color == null){ //si le fils est un noeud
+
+                    this.childs[i].compressDelta(delta); //on "descend"
+                }
+            }
+            //compression éventuelle
+            double rm = 0, gm = 0, bm = 0;
+            double lambda=0;
             boolean isCompressable = true;
 
-            if(this.childs[0].color != null && this.childs[1].color != null && this.childs[2].color != null && this.childs[3].color != null){ // tous les enfants sont des feuilles
+            //condition 1 : tous les fils sont des feuilles
+            for(int i = 0; i < 4; i++){
+                isCompressable &= childs[i].color != null;
+            }
 
+            if(isCompressable){
+                //calcul des valeur r, g, b moyennes des feuilles du noeud
                 for(int i = 0 ; i < 4 ; i++){
                     rm += childs[i].color.getRed();
                     gm += childs[i].color.getGreen();
@@ -87,33 +110,22 @@ public class Quadtree {
                 gm = gm/4;
                 bm = bm/4;
 
+                //calcul de l'écart colorimétrique lambda max des feuilles du noeud
                 for(int i = 0; i < 4; i++){
-                    r = childs[i].color.getRed();
-                    g = childs[i].color.getGreen();
-                    b = childs[i].color.getBlue();
-
-                    if(Math.sqrt((Math.pow(r - rm, 2) + Math.pow(g - gm, 2) + Math.pow(b - bm, 2)) /3) > delta){
-                        isCompressable = false;
-                    }
+                    lambda = Math.max(lambda, Math.sqrt((Math.pow(childs[i].color.getRed() - rm, 2) + Math.pow(childs[i].color.getGreen() - gm, 2) + Math.pow(childs[i].color.getBlue() - bm, 2)) /3));
                 }
-                if(isCompressable){
-                    color = new Color((int)rm,(int)gm,(int)bm);
+                //condition 2 : écart_colorimétrique_max <= delta |---> compression
+                if(lambda <= delta){
+                    color = new Color((int)rm,(int)gm,(int)bm); //la couleur du noeud est initialisé à la couleur moyenne des feuilles
                     for (int i = 0; i < 4; i++) {
-                        childs[i] = null;
-                    }
-                }
-            } else { // tous les enfants ne sont pas des feuilles
-                if(cpt > 1){
-                    for(int i = 0; i < 4; i++){
-                        if(childs[i].color == null){
-                            childs[i].compressDelta_rec(delta, cpt-1);
-                        }
+                        childs[i] = null; //le noeud devient une feuille, donc on met les fils à null
                     }
                 }
             }
         }
     }
 
+    //////////////////////////////////////////
     private class PhiPair{
         public double delta ;
         public Quadtree target;
@@ -210,7 +222,11 @@ public class Quadtree {
         }
 
     }
+    /////////////////////////////////////////////
 
+    /*
+     * Retourne une ImagePNG correspondant au Quadtree
+     */
     public ImagePNG toPNG(){
 
         ImagePNG png = new ImagePNG(this.img);
@@ -235,7 +251,7 @@ public class Quadtree {
 
                     png.setPixel(col, line, this.color);
 
-                    if(col == xMax){ // on a fini la ligne, on passe à la suivante
+                    if(col == xMax){ // on a fini de parcourir la ligne, on passe à la suivante
                         col = x;
                         line++;
 
@@ -284,12 +300,10 @@ public class Quadtree {
             }
         }
         return size ;
-
     }
 
     //library
     public static int log(int x, int b){
         return (int) (Math.log(x) / Math.log(b));
     }
-
 }
