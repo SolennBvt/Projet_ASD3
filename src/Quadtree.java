@@ -127,57 +127,186 @@ public class Quadtree {
 
     //////////////////////////////////////////
     private class PhiPair{
+
+        public boolean isValide = false ;
+
         public double delta ;
         public Quadtree target;
+        public PhiPair father ; //pere de la target, et non pere dans l'abr, ce noeud n'est pas encore dans l'arbre.
         public Color compressedColor;
+        public int childsNumber ;
+        public int feuilles = 0;
 
-        public PhiPair(double delta, Quadtree target, Color compressedColor){
-            this.delta = delta ;
+        public PhiPair leftChild = null;
+        public PhiPair rightChild = null;
+
+        public PhiPair(Quadtree target,PhiPair father){
             this.target = target ;
+            this.father = father ;
+        }
+
+        public PhiPair(PhiPair clone){
+            this.delta = clone.delta;
+            this.target = clone.target;
+            this.father = clone.father;
+            this.compressedColor = clone.compressedColor;
+            this.childsNumber = clone.childsNumber;
+            this.feuilles = clone.feuilles;
+            this.leftChild = clone.leftChild;
+            this.rightChild = clone.rightChild;
+        }
+
+        public void updateLeaf(double delta, Color compressedColor){
+            this.delta = delta ;
             this.compressedColor = compressedColor ;
+            this.childsNumber = 0 ;
+        }
+
+        public void updateNode(int childsNumber){
+            this.delta = 0 ;
+            this.compressedColor = null ;
+            this.childsNumber = childsNumber ;
+        }
+
+        public void insert(PhiPair target){
+
+            if(target.delta <= this.delta){
+
+                if(leftChild == null ){
+                    leftChild = target ;
+                }else {
+                    leftChild.insert(target);
+                }
+
+            }else {
+
+                if(rightChild == null){
+                    rightChild = target ;
+                }else {
+                    rightChild.insert(target);
+                }
+
+            }
+
+        }
+
+        public PhiPair pop(){
+            if(leftChild == null){
+                return this ;
+            }if(leftChild.leftChild == null){
+                PhiPair returnObject = leftChild ;
+                leftChild = leftChild.rightChild ;
+                return returnObject ;
+            }else {
+                return leftChild.pop();
+            }
+        }
+
+        public PhiPair testRacine(){
+            if(leftChild == null && rightChild != null){
+                PhiPair newRacine = new PhiPair(rightChild);
+                newRacine.feuilles = this.feuilles;
+                this.rightChild = null ;
+                newRacine.insert(this);
+                return newRacine ;
+            }else {
+                return this ;
+            }
+        }
+
+        @Override
+        public String toString() {
+            return "PhiPair{" +
+                    "leftChild=" + leftChild +
+                    ", rightChild=" + rightChild +
+                    '}';
         }
     }
 
     public void compressPhi(int phi) {
 
-        ArrayList<PhiPair> pairs = new ArrayList<PhiPair>();
+        PhiPair racine = new PhiPair(null,null);
+        racine = compressPhiReq(racine, null);
 
-        compressPhi(pairs);
+        PhiPair temp = racine.pop();;
+        racine = racine.testRacine();
+        while (racine != temp && racine.feuilles > phi){
+            temp = racine.pop();
+            racine = racine.testRacine();
 
-        while(getSize() > phi){ //parcour total de l'arbre a chaque getSize !
+            temp.target.phiCompressThis(temp.compressedColor);
+            racine.feuilles -= 3;
 
-            pairs.get(0).target.phiCompressThis(pairs.get(0).compressedColor);
-            pairs.remove(0);
+            if(temp.father != null){
+
+                temp.father.childsNumber -- ;
+                if(temp.father.childsNumber <= 0) {
+
+                    temp.father.target.calculPhi(temp.father);
+                    racine.insert(temp.father);
+                }
+
+            }
 
         }
 
     }
 
-    private PhiPair compressPhi(ArrayList<PhiPair> pairs){
+    private PhiPair compressPhiReq(PhiPair racine, PhiPair father){
 
-        PhiPair newPair ;
-        Color temp[] = new Color[4] ;
-        ArrayList<PhiPair> dependances = new ArrayList<PhiPair>();
-        float rm = 0, vm = 0, bm = 0;
-        double delta = 0;
+        PhiPair newPair = new PhiPair(this,father) ;
+        int childNumber = 0;
 
         for(int i = 0 ; i < 4 ; ++i) {
 
-            if (childs[i].color != null) {
+            if (childs[i].color == null) {
 
-                temp[i] = childs[i].color ;
-
-            } else {
-
-                PhiPair childPair = childs[i].compressPhi(pairs);
-                temp[i] = childPair.compressedColor;
-                dependances.add(childPair);
+                racine = childs[i].compressPhiReq(racine, newPair);
+                childNumber++;
 
             }
 
-            rm += temp[i].getRed();
-            vm += temp[i].getGreen();
-            bm += temp[i].getBlue();
+        }
+
+        if(childNumber > 0){
+
+            newPair.updateNode(childNumber);
+            racine.feuilles += 4-childNumber ;
+            return racine ;
+
+        }else {
+
+            calculPhi(newPair);
+            racine.feuilles += 4 ;
+            return addPhiPair(racine,newPair);
+
+        }
+
+    }
+
+    private PhiPair addPhiPair(PhiPair racine, PhiPair newPair){
+
+        if(!racine.isValide){
+            newPair.feuilles = racine.feuilles;
+            newPair.isValide = true ;
+            return newPair;
+        }else {
+            racine.insert(newPair);
+            return racine;
+        }
+
+    }
+
+    private void calculPhi(PhiPair newPair){
+
+        float rm = 0, vm = 0, bm = 0;
+        double delta = 0;
+
+        for(int i = 0 ; i < 4 ; ++i){
+
+            rm += childs[i].color.getRed();
+            vm += childs[i].color.getGreen();
+            bm += childs[i].color.getBlue();
 
         }
 
@@ -187,30 +316,11 @@ public class Quadtree {
 
         for(int i = 0 ; i < 4 ; ++i) {
 
-            delta = Math.max(Math.sqrt((Math.pow(temp[i].getRed() - rm, 2) + Math.pow(temp[i].getGreen() - rm, 2) + Math.pow(temp[i].getBlue() - rm, 2)) / 3), delta);
+            delta = Math.max(Math.sqrt((Math.pow(childs[i].color.getRed() - rm, 2) + Math.pow(childs[i].color.getGreen() - rm, 2) + Math.pow(childs[i].color.getBlue() - rm, 2)) / 3), delta);
 
         }
 
-        int index = 0 ;
-
-        while(dependances.size() >0){
-
-            for(int i = 0 ; i < dependances.size() ; ++i){
-                if(pairs.get(index).equals(dependances.get(i))){
-                    dependances.remove(i);
-                }
-            }
-            index++ ;
-
-        }
-
-        while(index < pairs.size() && pairs.get(index).delta < delta){
-            index ++ ;
-        }
-
-        newPair = new PhiPair(delta,this, new Color((int)rm,(int)vm,(int)bm));
-        pairs.add(index,newPair);
-        return newPair ;
+        newPair.updateLeaf(delta,new Color((int)rm,(int)vm,(int)bm));
 
     }
 
