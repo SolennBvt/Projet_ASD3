@@ -378,16 +378,34 @@ public class Main {
 
                 }
 
+                /*
                 prevCompress = 1 ;
                 delta(delta);
                 saveToPNG(delta);
                 saveToTXT(delta);
 
                 prevCompress = 2 ;
+
+
+                long dep = System.currentTimeMillis();
                 phi(phi);
+                System.out.println((System.currentTimeMillis() - dep) / 1000.0);
+
+
+
                 saveToPNG(phi);
                 saveToTXT(phi);
 
+                 */
+                prevCompress = 2 ;
+                for(int i = 0 ; i < 2000 ; ++i){
+                    long dep = System.currentTimeMillis();
+                    phi(4+i*3);
+                    System.out.println((System.currentTimeMillis() - dep) / 1000.0);
+                    saveToPNG(4+i*3);
+                }
+
+                /*
                 double siD = ImagePNG.computeEQM(png,png_delta);
                 double siP = ImagePNG.computeEQM(png,png_phi);
 
@@ -401,6 +419,7 @@ public class Main {
 
                 System.out.println("delta : rapport de poids = "+wD+"% / qualité = "+siD+"%");
                 System.out.println("phy : rapport de poids = "+wP+"% / qualité = "+siP+"%");
+                */
 
             } else {
 

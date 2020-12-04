@@ -128,16 +128,12 @@ public class Quadtree {
     //////////////////////////////////////////
     private class PhiPair{
 
-        public boolean isValide = false ;
-
-        public double delta ;
-        public Quadtree target;
+        public double delta ; //delta maximum de noeud, calculé seulement si tous les fils sont des feuilles
+        public Quadtree target; //Quadtree cible
         public PhiPair father ; //pere de la target, et non pere dans l'abr, ce noeud n'est pas encore dans l'arbre.
-        public Color compressedColor;
-        public int childsNumber ;
-        public int feuilles = 0;
+        public Color compressedColor; //couleur compréssé a remplacé si le noeud venait a etre compressé, calculé seulement si tous les fils sont des feuilles
 
-        public PhiPair leftChild = null;
+        public PhiPair leftChild = null; //pointeurs vers les fils
         public PhiPair rightChild = null;
 
         public PhiPair(Quadtree target,PhiPair father){
@@ -145,123 +141,150 @@ public class Quadtree {
             this.father = father ;
         }
 
-        public PhiPair(PhiPair clone){
-            this.delta = clone.delta;
-            this.target = clone.target;
-            this.father = clone.father;
-            this.compressedColor = clone.compressedColor;
-            this.childsNumber = clone.childsNumber;
-            this.feuilles = clone.feuilles;
-            this.leftChild = clone.leftChild;
-            this.rightChild = clone.rightChild;
-        }
-
+        /*
+        * mise a jour du noeud a faire juste avant de l'intégrer dans l'arbre, permet d'obtenir son delta afin de le trier.
+         */
         public void updateLeaf(double delta, Color compressedColor){
             this.delta = delta ;
             this.compressedColor = compressedColor ;
-            this.childsNumber = 0 ;
         }
 
-        public void updateNode(int childsNumber){
-            this.delta = 0 ;
-            this.compressedColor = null ;
-            this.childsNumber = childsNumber ;
+        /*
+        * permet de savoir si un noeud contient 4 fils feuilles, ce qui permetterait de le compresser.
+         */
+        public boolean isLeaf(){
+            if(target == null){
+                return false ;
+            }
+            for(int i = 0 ; i < 4 ; ++i){
+                if(target.childs[i].color == null){
+                    return false ;
+                }
+            }
+            return true ;
         }
 
-        public void insert(PhiPair target){
+        /*
+        * insertion d'un noeud dans l'arbre
+        * le trie s'éffectue sur la valeur de delta
+         */
+        public void insert(PhiPair localTarget){
 
-            if(target.delta <= this.delta){
+            if(target == null){
+
+                if(leftChild == null){
+                    leftChild = localTarget ;
+                }else {
+                    leftChild.insert(localTarget);
+                }
+
+            }else if(localTarget.delta <= this.delta){
 
                 if(leftChild == null ){
-                    leftChild = target ;
+                    leftChild = localTarget ;
                 }else {
-                    leftChild.insert(target);
+                    leftChild.insert(localTarget);
                 }
 
             }else {
 
                 if(rightChild == null){
-                    rightChild = target ;
+                    rightChild = localTarget ;
                 }else {
-                    rightChild.insert(target);
+                    rightChild.insert(localTarget);
                 }
 
             }
 
         }
 
+        /*
+        * sort le noeud de l'arbre le plus a gauche, et le supprime de l'arbre
+         */
         public PhiPair pop(){
-            if(leftChild == null){
-                return this ;
-            }if(leftChild.leftChild == null){
-                PhiPair returnObject = leftChild ;
-                leftChild = leftChild.rightChild ;
-                return returnObject ;
-            }else {
-                return leftChild.pop();
-            }
-        }
+            if(target == null && leftChild == null){
 
-        public PhiPair testRacine(){
-            if(leftChild == null && rightChild != null){
-                PhiPair newRacine = new PhiPair(rightChild);
-                newRacine.feuilles = this.feuilles;
-                this.rightChild = null ;
-                newRacine.insert(this);
-                return newRacine ;
+                return null ;
+
+            }else if(leftChild.leftChild == null) {
+
+                PhiPair returnObj = leftChild ;
+                leftChild = leftChild.rightChild ;
+                return  returnObj ;
+
             }else {
-                return this ;
+
+                return leftChild.pop();
+
             }
+
         }
 
         @Override
         public String toString() {
-            return "PhiPair{" +
-                    "leftChild=" + leftChild +
-                    ", rightChild=" + rightChild +
-                    '}';
+            if(target == null){
+                return leftChild.toString();
+            }
+
+            String returnString = " < "+delta;
+            if(leftChild != null){
+                returnString = leftChild.toString() + returnString ;
+            }if(rightChild != null) {
+                returnString = returnString + rightChild.toString();
+            }
+            return  returnString ;
+
         }
     }
 
+    /*
+    * fonction public compressPhi
+    * initialise une Phipair racine
+    * lit le quadtree en récursive grace a la fonction compressPhiReq
+    * crée un ABR Phipair a partir de la de la racine qui contient tous les Quadtree pouvant etre compressé extrait de la lecture de l'arbre Quadtree
+    * le compresse jusqu'a que le nombre de feuilles (leafs) soit plus faible que l'entier phi donné en argument
+     */
     public void compressPhi(int phi) {
 
+        int leafs = 0 ;
         PhiPair racine = new PhiPair(null,null);
-        racine = compressPhiReq(racine, null);
+        leafs += compressPhiReq(racine, null);
 
-        PhiPair temp = racine.pop();;
-        racine = racine.testRacine();
-        while (racine != temp && racine.feuilles > phi){
-            temp = racine.pop();
-            racine = racine.testRacine();
+        PhiPair temp = racine.pop(); ;
+        while (temp != null && leafs > phi){
 
             temp.target.phiCompressThis(temp.compressedColor);
-            racine.feuilles -= 3;
+            leafs -= 3; //a chaque compression, on détruit 4 feuilles pour en produire une, ce qui fait un changement net de 3.
 
-            if(temp.father != null){
+            if(temp.father != null && temp.father.isLeaf()){
 
-                temp.father.childsNumber -- ;
-                if(temp.father.childsNumber <= 0) {
-
-                    temp.father.target.calculPhi(temp.father);
-                    racine.insert(temp.father);
-                }
+                temp.father.target.addPhiPair(racine, temp.father);
 
             }
 
+            temp = racine.pop();
+
         }
 
     }
 
-    private PhiPair compressPhiReq(PhiPair racine, PhiPair father){
+    /*
+    * fonction récursive, lit l'arbre Quadtree
+    * crée un phiPair pour chaque noeud de Quadtree,
+    * les noeud possédant feuilles sont ajouté dans l'ABR de racine donné en argument,
+    * retourne le nombre de feuilles renconrtré.
+     */
+    private int compressPhiReq(PhiPair racine, PhiPair father){
 
         PhiPair newPair = new PhiPair(this,father) ;
         int childNumber = 0;
+        int leafs = 0;
 
         for(int i = 0 ; i < 4 ; ++i) {
 
             if (childs[i].color == null) {
 
-                racine = childs[i].compressPhiReq(racine, newPair);
+                leafs += childs[i].compressPhiReq(racine, newPair);
                 childNumber++;
 
             }
@@ -270,36 +293,24 @@ public class Quadtree {
 
         if(childNumber > 0){
 
-            newPair.updateNode(childNumber);
-            racine.feuilles += 4-childNumber ;
-            return racine ;
+            return leafs + (4-childNumber) ; //le nombre de feuilles correspond au nombre de fils qui ont une couleur non null
 
         }else {
 
-            calculPhi(newPair);
-            racine.feuilles += 4 ;
-            return addPhiPair(racine,newPair);
+            addPhiPair(racine,newPair);
+            return leafs + 4 ;
 
         }
 
     }
 
-    private PhiPair addPhiPair(PhiPair racine, PhiPair newPair){
+    /*
+    * calcule delta pour un noeud qui possede feuilles,
+    * le PhiPair corespondant sera rajouté dans l'ABR.
+     */
+    private void addPhiPair(PhiPair racine, PhiPair newPair){
 
-        if(!racine.isValide){
-            newPair.feuilles = racine.feuilles;
-            newPair.isValide = true ;
-            return newPair;
-        }else {
-            racine.insert(newPair);
-            return racine;
-        }
-
-    }
-
-    private void calculPhi(PhiPair newPair){
-
-        float rm = 0, vm = 0, bm = 0;
+        double rm = 0, vm = 0, bm = 0;
         double delta = 0;
 
         for(int i = 0 ; i < 4 ; ++i){
@@ -316,14 +327,19 @@ public class Quadtree {
 
         for(int i = 0 ; i < 4 ; ++i) {
 
-            delta = Math.max(Math.sqrt((Math.pow(childs[i].color.getRed() - rm, 2) + Math.pow(childs[i].color.getGreen() - rm, 2) + Math.pow(childs[i].color.getBlue() - rm, 2)) / 3), delta);
+            delta = Math.max(Math.sqrt((Math.pow(childs[i].color.getRed() - rm, 2) + Math.pow(childs[i].color.getGreen() - rm, 2) + Math.pow(childs[i].color.getBlue() - bm, 2)) / 3), delta);
 
         }
 
         newPair.updateLeaf(delta,new Color((int)rm,(int)vm,(int)bm));
 
+        racine.insert(newPair);
+
     }
 
+    /*
+    * compresse un noeud, a partir des information fournit par le Phipair correspondant.
+     */
     private void phiCompressThis(Color localColor){
 
         color = localColor ;
