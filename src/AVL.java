@@ -20,9 +20,10 @@ public class AVL<Type extends Comparable> { // Classe T générique
     }
 
     // Méthodes
+
     public int insert(Type elt) {
 
-        int h;
+        int h = 0;
 
         if (element == null) {
 
@@ -42,7 +43,6 @@ public class AVL<Type extends Comparable> { // Classe T générique
                 if (left == null) { left = new AVL<Type>(); }
                 h = -left.insert(elt);
             }
-            h = 0;
         }
 
         // Balance et Equilibre
@@ -52,6 +52,8 @@ public class AVL<Type extends Comparable> { // Classe T générique
             balance();
             if(bal == 0){ return 0; } else { return 1; }
         }
+
+
     }
     /*
     public int suppressMin(AVL<Type> father) {

@@ -1,6 +1,7 @@
 import java.awt.*;
+import java.util.*;
 
-public class Quadtree implements Comparable {
+public class Quadtree {
 
     private Quadtree childs[];
     private Color color ;
@@ -26,7 +27,7 @@ public class Quadtree implements Comparable {
             int pas = length /2; //taille du sous-carré
 
             //matrice servant à calculer les nouvelles coordonnées (x, y) des sous-régions
-            int matrice[][] = {{0,0},{1,0},{1,1},{0,1}};
+            byte matrice[][] = {{0,0},{1,0},{1,1},{0,1}};
 
             for(int i = 0; i < 4; i++){
 
@@ -97,7 +98,7 @@ public class Quadtree implements Comparable {
                 double lambda = maxColorimetricDifference();
 
                 if(lambda <= delta){ //condition 2 : écart_colorimétrique_max <= delta |---> compression
-                    transformToLeaf();
+                    transformToLeaf(mediumColor());
                 }
             }
         }
@@ -108,39 +109,77 @@ public class Quadtree implements Comparable {
 
     public void compressPhi(int phi){
 
-        AVL<Quadtree> colorDiffAVL = new AVL(); // AVL qui contiendra les noeud pères de 4 feuilles
-        Quadtree minColorDiff; // le noeud minimal de l'AVL
+        //AVL<PhiStruct> colorDiffAVL = new AVL(); // AVL qui contiendra les noeud pères de 4 feuilles
+        TreeSet<PhiStruct> colorDiffAVL = new TreeSet<PhiStruct>();
         int nbLeaves = numberOfLeaves(); // nombre de feuilles du quadtree
 
         this.compressPhi_rec(colorDiffAVL);
+        PhiStruct minColorDiff = colorDiffAVL.pollFirst(); // le noeud minimal de l'AVL
 
-        while(phi < nbLeaves && colorDiffAVL.numberOfNodes() > 0) {
+        while(nbLeaves > phi && minColorDiff != null) {
 
-            minColorDiff = colorDiffAVL.getMin().element;
-
-            colorDiffAVL.remove(minColorDiff);
-
-            minColorDiff.transformToLeaf();
+            minColorDiff.target.transformToLeaf(minColorDiff.compressedColor);
 
             nbLeaves -=3;
 
-            if(minColorDiff.father != null && minColorDiff.father.allSonsAreLeaves()){
+            if(minColorDiff.target.father != null && minColorDiff.target.father.allSonsAreLeaves()){
 
-                colorDiffAVL.insert(minColorDiff.father);
+                PhiStruct father = new PhiStruct(minColorDiff.target.father.maxColorimetricDifference(),minColorDiff.target.father,minColorDiff.target.father.mediumColor());
+                colorDiffAVL.add(father);
             }
+
+            minColorDiff = colorDiffAVL.pollFirst();
         }
+    }
+
+    private class PhiStruct implements Comparable{
+        public double lambda ; //delta maximum de noeud, calculé seulement si tous les fils sont des feuilles
+        public Quadtree target; //Quadtree cible
+        public Color compressedColor; //couleur compréssé a remplacé si le noeud venait a etre compressé, calculé seulement si tous les fils sont des feuilles
+
+        private PhiStruct(double lambda, Quadtree target, Color compressedColor){
+            this.lambda = lambda ;
+            this.target = target ;
+            this.compressedColor = compressedColor ;
+        }
+
+        public int compareTo(Object o) {
+
+            if(o instanceof PhiStruct){
+
+                PhiStruct q = (PhiStruct)o;
+
+                if(this.lambda > q.lambda){
+
+                    return 1;
+
+                } else if(this.lambda < q.lambda){
+
+                    return -1;
+
+                } else {
+
+                    if(this.equals(q)) {
+                        return 0;
+                    }
+                }
+            }
+            return -1;
+        }
+
     }
 
     /*
      * Remplis un AVL avec les noeuds du quadtree qui n'ont que des feuilles comme fils
      */
-    private void compressPhi_rec(AVL<Quadtree> colorDiffAVL){
+    private void compressPhi_rec(TreeSet<PhiStruct> colorDiffAVL){
 
         if(this.color == null) { // on est à un noeud
 
             if (allSonsAreLeaves()) { // tous nos fils sont des feuilles
 
-                colorDiffAVL.insert(this); // on insert l'écart colorimétrique max dans l'AVL
+                PhiStruct newObjet = new PhiStruct(this.maxColorimetricDifference(),this,mediumColor());
+                colorDiffAVL.add(newObjet); // on insert l'écart colorimétrique max dans l'AVL
 
             } else {
 
@@ -177,11 +216,13 @@ public class Quadtree implements Comparable {
      * Transforme un noeud en feuille. Sa couleur devient alors la couleur moyennes de ses fils.
      * Pré-condition : le quadtree appelant est un noeud et tous ses fils des feuilles.
      */
-    private void transformToLeaf(){
+    private void transformToLeaf(Color tempColor){
 
-        color = mediumColor(); // transformation en feuille
+        color = tempColor; // transformation en feuille
 
-        childs = null; // suppression des fils
+        for(int i = 0 ; i < 4 ; ++i){
+            childs[i] = null ;
+        }
     }
 
     /*
@@ -313,30 +354,6 @@ public class Quadtree implements Comparable {
     /*
      *  Pour la classe AVL<Quadtree> : comparaison suivant l'écart colorimétrique pour insérer le Quadtree dans l'AVL
      */
-    @Override
-    public int compareTo(Object o) {
-
-        if(o instanceof Quadtree){
-
-            Quadtree q = (Quadtree)o;
-
-            if(this.maxColorimetricDifference() > q.maxColorimetricDifference()){
-
-                return 1;
-
-            } else if(this.maxColorimetricDifference() < q.maxColorimetricDifference()){
-
-                return -1;
-
-            } else {
-
-                if(q.equals(o)) {
-                    return 0;
-                }
-            }
-        }
-        return -1;
-    }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 }

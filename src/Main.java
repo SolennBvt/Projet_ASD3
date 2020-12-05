@@ -14,7 +14,7 @@ public class Main {
     public static void main(String[] args) {
 
         try {
-
+/*
             AVL<Integer> a = new AVL<Integer>();
             a.insert(4);
             a.insert(3);
@@ -30,19 +30,19 @@ public class Main {
             System.out.println(a.toString() + "----------------->" + a.bal);
             a.remove(3);
             System.out.println(a.toString() + "----------------->" + a.bal);
-
+*/
 
 
             ImagePNG png = new ImagePNG("pngs/1024-cube.png");
             //Quadtree q = new Quadtree(png, 0, 0, png.height(), null);
-            Quadtree q = new Quadtree(png, 0, 0, png.height());
+            Quadtree q = new Quadtree(png, 0, 0, png.height(),null);
 
             long lStartTime = System.nanoTime();
-            //q.compressPhi(4);
+            q.compressPhi(1);
             long lEndTime = System.nanoTime();
 
             System.out.println("post phi");
-            //System.out.println(q.toString());
+            System.out.println(q.toString());
 
             png = q.toPNG();
             png.save("resultats/16-phi4.png");
