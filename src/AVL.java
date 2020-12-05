@@ -21,6 +21,9 @@ public class AVL<Type extends Comparable> { // Classe T générique
 
     // Méthodes
 
+    /*
+    * ajoute un nouveau noeud avec un élément donné
+     */
     public int insert(Type elt) {
 
         int h = 0;
@@ -55,46 +58,10 @@ public class AVL<Type extends Comparable> { // Classe T générique
 
 
     }
+
     /*
-    public int suppressMin(AVL<Type> father) {
-
-        int h;
-
-        if (left == null) { // on est au minimum
-
-            if(father == null){ // on est à la racine
-
-                if(right != null){
-                    this.element = right.element;
-                    this.bal = right.bal;
-                    this.left = right.left;
-                    this.right = right.right;
-                } else {
-                    this.element = null;
-                }
-            }else if (right !=null){
-
-                father.left = right;
-
-            } else {
-                father.left = null;
-            }
-            return -1;
-
-        } else { // on continue de chercher à gauche
-
-            h = -left.suppressMin(this);
-            if (h == 0) { return 0; }
-            else {
-                bal = bal + h;
-                balance();
-                if(bal == 0){return -1;} else {return 0;}
-            }
-        }
-    }
-
+     * retire un noeud de l'arbre, son élément doit etre spécifié en entrée.
      */
-
     public void remove(Type elt){
         remove(elt, this);
     }
@@ -182,6 +149,9 @@ public class AVL<Type extends Comparable> { // Classe T générique
         }
     }
 
+    /*
+     * retourne le nombre total de noeud.
+     */
     public int numberOfNodes(){
         if(left == null || right == null){
             if(left != null){
@@ -195,6 +165,10 @@ public class AVL<Type extends Comparable> { // Classe T générique
             return 1 + left.numberOfNodes() + right.numberOfNodes();
         }
     }
+
+    /*
+     * calcule les balance du noeud.
+     */
     private void balance(){
         if(bal == 2){
             if(right.bal >= 0){
@@ -212,6 +186,10 @@ public class AVL<Type extends Comparable> { // Classe T générique
             }
         }
     }
+
+    /*
+     * rotation a gauche.
+     */
     private void rotG(){
 
         AVL<Type> temp = new AVL();
@@ -243,6 +221,10 @@ public class AVL<Type extends Comparable> { // Classe T générique
         this.right = B.right;
         this.left = B.left;
     }
+
+    /*
+     * rotation a droite.
+     */
     private void rotD(){
 
         AVL<Type> temp = new AVL();

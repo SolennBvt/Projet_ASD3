@@ -5,7 +5,6 @@ public class Quadtree {
 
     private Quadtree childs[];
     private Color color ;
-    private ImagePNG img;
     private Quadtree father;
 
     /*
@@ -13,7 +12,6 @@ public class Quadtree {
      */
     public Quadtree(ImagePNG img, int x, int y, int length, Quadtree father){
 
-        this.img = img;
         this.childs = new Quadtree[4];
         this.father = father;
 
@@ -277,12 +275,16 @@ public class Quadtree {
     /*
      * Retourne une ImagePNG correspondant au Quadtree
      */
-    public ImagePNG toPNG(){
+    public ImagePNG toPNG(String path){
 
-        ImagePNG png = new ImagePNG(this.img);
-        modifPNG_rec(png, 0, 0, this.img.height());
-
-        return png;
+        try{
+            ImagePNG png = new ImagePNG(path);
+            modifPNG_rec(png, 0, 0, png.height());
+            return png;
+        }catch(Exception e){
+            System.out.println(e);
+        }
+        return null ;
     }
 
     /*
