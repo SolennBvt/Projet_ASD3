@@ -181,6 +181,7 @@ public class AVL<Type extends Comparable> { // Classe T générique
             return left.getMin();
         }
     }
+
     public int numberOfNodes(){
         if(left == null || right == null){
             if(left != null){

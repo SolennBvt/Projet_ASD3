@@ -109,15 +109,16 @@ public class Quadtree {
 
     public void compressPhi(int phi){
 
-        //AVL<PhiStruct> colorDiffAVL = new AVL(); // AVL qui contiendra les noeud pères de 4 feuilles
-        TreeSet<PhiStruct> colorDiffAVL = new TreeSet<PhiStruct>();
+        AVL<PhiStruct> colorDiffAVL = new AVL(); // AVL qui contiendra les noeud pères de 4 feuilles
+        //TreeSet<PhiStruct> colorDiffAVL = new TreeSet<PhiStruct>();
         int nbLeaves = numberOfLeaves(); // nombre de feuilles du quadtree
 
         this.compressPhi_rec(colorDiffAVL);
-        PhiStruct minColorDiff = colorDiffAVL.pollFirst(); // le noeud minimal de l'AVL
+        PhiStruct minColorDiff = colorDiffAVL.getMin().element; // le noeud minimal de l'AVL
 
         while(nbLeaves > phi && minColorDiff != null) {
 
+            colorDiffAVL.remove(minColorDiff);
             minColorDiff.target.transformToLeaf(minColorDiff.compressedColor);
 
             nbLeaves -=3;
@@ -125,10 +126,10 @@ public class Quadtree {
             if(minColorDiff.target.father != null && minColorDiff.target.father.allSonsAreLeaves()){
 
                 PhiStruct father = new PhiStruct(minColorDiff.target.father.maxColorimetricDifference(),minColorDiff.target.father,minColorDiff.target.father.mediumColor());
-                colorDiffAVL.add(father);
+                colorDiffAVL.insert(father);
             }
 
-            minColorDiff = colorDiffAVL.pollFirst();
+            minColorDiff = colorDiffAVL.getMin().element;
         }
     }
 
@@ -172,14 +173,14 @@ public class Quadtree {
     /*
      * Remplis un AVL avec les noeuds du quadtree qui n'ont que des feuilles comme fils
      */
-    private void compressPhi_rec(TreeSet<PhiStruct> colorDiffAVL){
+    private void compressPhi_rec(AVL<PhiStruct> colorDiffAVL){
 
         if(this.color == null) { // on est à un noeud
 
             if (allSonsAreLeaves()) { // tous nos fils sont des feuilles
 
                 PhiStruct newObjet = new PhiStruct(this.maxColorimetricDifference(),this,mediumColor());
-                colorDiffAVL.add(newObjet); // on insert l'écart colorimétrique max dans l'AVL
+                colorDiffAVL.insert(newObjet); // on insert l'écart colorimétrique max dans l'AVL
 
             } else {
 
