@@ -1,41 +1,42 @@
 import java.awt.*;
-import java.util.ArrayList;
 
-public class Quadtree {
-
-    //attributs
+public class Quadtree implements Comparable {
 
     private Quadtree childs[];
     private Color color ;
     private ImagePNG img;
-
-    //constructeur
+    private Quadtree father;
 
     /*
-         * Appel constructeur : new Quadtre(img, 0, 0, img.length);
-         */
-    public Quadtree(ImagePNG img, int x, int y, int length){
+     * Construit un quadtree compressé sans dégradation
+     */
+    public Quadtree(ImagePNG img, int x, int y, int length, Quadtree father){
 
         this.img = img;
         this.childs = new Quadtree[4];
+        this.father = father;
 
-        if(isSameColor(img, x, y, length)){ //si tous les pixels de la zone concernée sont de la même couleur alors on crée une feuille
+        //si tous les pixels de la zone concernée sont de la même couleur alors on crée une feuille
+        if(isSameColor(img, x, y, length)){
 
             this.color = img.getPixel(x, y);
 
         } else { //sinon création d'un noeud -> on divise la zone en 4 sous-région N0, NE, SE, SO
 
             int pas = length /2; //taille du sous-carré
-            int matrice[][] = {{0,0},{1,0},{1,1},{0,1}}; //matrice servant à calculer les nouvelles coordonnées (x, y) des sous-régions
+
+            //matrice servant à calculer les nouvelles coordonnées (x, y) des sous-régions
+            int matrice[][] = {{0,0},{1,0},{1,1},{0,1}};
 
             for(int i = 0; i < 4; i++){
 
-                this.childs[i] = new Quadtree(img, x + matrice[i][0] * pas, y + matrice[i][1] * pas, pas); //création des quatre fils correspondant aux sous-régions
+                //création des quatre fils correspondant aux sous-régions
+                this.childs[i] = new Quadtree(img, x + matrice[i][0] * pas, y + matrice[i][1] * pas, pas, this);
             }
         }
     }
 
-    //méthodes
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /*
      * Retourne si les pixels sont tous de la même couleur dans une sous-partie carrée d'une image
@@ -89,140 +90,147 @@ public class Quadtree {
                     this.childs[i].compressDelta(delta); //on "descend"
                 }
             }
+
             //compression éventuelle
-            double rm = 0, gm = 0, bm = 0;
-            double lambda=0;
-            boolean isCompressable = true;
+            if(allSonsAreLeaves()){ //condition 1 : tous les fils sont des feuilles
 
-            //condition 1 : tous les fils sont des feuilles
-            for(int i = 0; i < 4; i++){
-                isCompressable &= childs[i].color != null;
-            }
+                double lambda = maxColorimetricDifference();
 
-            if(isCompressable){
-                //calcul des valeur r, g, b moyennes des feuilles du noeud
-                for(int i = 0 ; i < 4 ; i++){
-                    rm += childs[i].color.getRed();
-                    gm += childs[i].color.getGreen();
-                    bm += childs[i].color.getBlue();
-                }
-                rm = rm/4;
-                gm = gm/4;
-                bm = bm/4;
-
-                //calcul de l'écart colorimétrique lambda max des feuilles du noeud
-                for(int i = 0; i < 4; i++){
-                    lambda = Math.max(lambda, Math.sqrt((Math.pow(childs[i].color.getRed() - rm, 2) + Math.pow(childs[i].color.getGreen() - gm, 2) + Math.pow(childs[i].color.getBlue() - bm, 2)) /3));
-                }
-                //condition 2 : écart_colorimétrique_max <= delta |---> compression
-                if(lambda <= delta){
-                    color = new Color((int)rm,(int)gm,(int)bm); //la couleur du noeud est initialisé à la couleur moyenne des feuilles
-                    for (int i = 0; i < 4; i++) {
-                        childs[i] = null; //le noeud devient une feuille, donc on met les fils à null
-                    }
+                if(lambda <= delta){ //condition 2 : écart_colorimétrique_max <= delta |---> compression
+                    transformToLeaf();
                 }
             }
         }
     }
 
-    //////////////////////////////////////////
-    private class PhiPair{
-        public double delta ;
-        public Quadtree target;
-        public Color compressedColor;
 
-        public PhiPair(double delta, Quadtree target, Color compressedColor){
-            this.delta = delta ;
-            this.target = target ;
-            this.compressedColor = compressedColor ;
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public void compressPhi(int phi){
+
+        AVL<Quadtree> colorDiffAVL = new AVL(); // AVL qui contiendra les noeud pères de 4 feuilles
+        Quadtree minColorDiff; // le noeud minimal de l'AVL
+        int nbLeaves = numberOfLeaves(); // nombre de feuilles du quadtree
+
+        this.compressPhi_rec(colorDiffAVL);
+
+        while(phi < nbLeaves && colorDiffAVL.numberOfNodes() > 0) {
+
+            minColorDiff = colorDiffAVL.getMin().element;
+
+            colorDiffAVL.remove(minColorDiff);
+
+            minColorDiff.transformToLeaf();
+
+            nbLeaves -=3;
+
+            if(minColorDiff.father != null && minColorDiff.father.allSonsAreLeaves()){
+
+                colorDiffAVL.insert(minColorDiff.father);
+            }
         }
     }
 
-    public void compressPhi(int phi) {
+    /*
+     * Remplis un AVL avec les noeuds du quadtree qui n'ont que des feuilles comme fils
+     */
+    private void compressPhi_rec(AVL<Quadtree> colorDiffAVL){
 
-        ArrayList<PhiPair> pairs = new ArrayList<PhiPair>();
+        if(this.color == null) { // on est à un noeud
 
-        compressPhi(pairs);
+            if (allSonsAreLeaves()) { // tous nos fils sont des feuilles
 
-        while(getSize() > phi){ //parcour total de l'arbre a chaque getSize !
-
-            pairs.get(0).target.phiCompressThis(pairs.get(0).compressedColor);
-            pairs.remove(0);
-
-        }
-
-    }
-
-    private PhiPair compressPhi(ArrayList<PhiPair> pairs){
-
-        PhiPair newPair ;
-        Color temp[] = new Color[4] ;
-        ArrayList<PhiPair> dependances = new ArrayList<PhiPair>();
-        float rm = 0, vm = 0, bm = 0;
-        double delta = 0;
-
-        for(int i = 0 ; i < 4 ; ++i) {
-
-            if (childs[i].color != null) {
-
-                temp[i] = childs[i].color ;
+                colorDiffAVL.insert(this); // on insert l'écart colorimétrique max dans l'AVL
 
             } else {
 
-                PhiPair childPair = childs[i].compressPhi(pairs);
-                temp[i] = childPair.compressedColor;
-                dependances.add(childPair);
-
-            }
-
-            rm += temp[i].getRed();
-            vm += temp[i].getGreen();
-            bm += temp[i].getBlue();
-
-        }
-
-        rm = rm/4;
-        vm = vm/4;
-        bm = bm/4;
-
-        for(int i = 0 ; i < 4 ; ++i) {
-
-            delta = Math.max(Math.sqrt((Math.pow(temp[i].getRed() - rm, 2) + Math.pow(temp[i].getGreen() - rm, 2) + Math.pow(temp[i].getBlue() - rm, 2)) / 3), delta);
-
-        }
-
-        int index = 0 ;
-
-        while(dependances.size() >0){
-
-            for(int i = 0 ; i < dependances.size() ; ++i){
-                if(pairs.get(index).equals(dependances.get(i))){
-                    dependances.remove(i);
+                for (int i = 0; i < 4; i++) {
+                    childs[i].compressPhi_rec(colorDiffAVL);
                 }
             }
-            index++ ;
-
         }
-
-        while(index < pairs.size() && pairs.get(index).delta < delta){
-            index ++ ;
-        }
-
-        newPair = new PhiPair(delta,this, new Color((int)rm,(int)vm,(int)bm));
-        pairs.add(index,newPair);
-        return newPair ;
-
     }
 
-    private void phiCompressThis(Color localColor){
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        color = localColor ;
-        for(int i = 0 ; i < 4 ; ++i){
-            childs[i] =  null ;
+    /*
+     * Retourne la couleur moyenne des feuilles d'un noeud.
+     * Pré-condition : le quadtree appelant doit être un noeud et tous ses fils des feuilles
+     */
+    private Color mediumColor(){
+
+        double rm = 0, gm = 0, bm = 0;
+
+        for(int i = 0 ; i < 4 ; i++){
+            rm += childs[i].color.getRed();
+            gm += childs[i].color.getGreen();
+            bm += childs[i].color.getBlue();
+        }
+        rm = rm/4;
+        gm = gm/4;
+        bm = bm/4;
+
+        return new Color((int)rm,(int)gm,(int)bm);
+    }
+
+    /*
+     * Transforme un noeud en feuille. Sa couleur devient alors la couleur moyennes de ses fils.
+     * Pré-condition : le quadtree appelant est un noeud et tous ses fils des feuilles.
+     */
+    private void transformToLeaf(){
+
+        color = mediumColor(); // transformation en feuille
+
+        childs = null; // suppression des fils
+    }
+
+    /*
+     * Retourne l'écart colorimétrique maximum de ses feuilles.
+     * Pré-condition : le quadtree appelant est un noeud et tous ses fils des feuilles.
+     */
+    private double maxColorimetricDifference(){
+
+        double lambda=0;
+
+        //calcul de la couleur moyenne au noeud
+
+        Color medCol = mediumColor();
+
+        // calcul de l'écart colorimétrique max des feuilles du noeud.
+        // Lambda = max( la_1, la_2, la_3, la_4) avec la_i = rac( 1/3 * ( (ri - rm)² + (gi - gm)² + (bi - bm)² ))
+
+        for(int i = 0; i < 4; i++){
+
+            lambda = Math.max(lambda, Math.sqrt((Math.pow(childs[i].color.getRed() - medCol.getRed(), 2) + Math.pow(childs[i].color.getGreen() - medCol.getGreen(), 2) + Math.pow(childs[i].color.getBlue() - medCol.getBlue(), 2)) /3));
         }
 
+        return lambda;
     }
-    /////////////////////////////////////////////
+
+    /*
+     * Retourne vrai si tous les fils sont des feuilles, faux sinon
+     * Pré-condition : le quadtree appelant est un noeud et tous ses fils des feuilles
+     */
+    private boolean allSonsAreLeaves(){
+        return childs[0].color != null && childs[1].color != null && childs[2].color != null && childs[3].color != null;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /*
+     * Retourne le nombre de feuille
+     */
+    public int numberOfLeaves(){
+
+        if(childs[0] == null){ // on est au niveau d'une feuille car un noeud a forcément 4 fils
+
+            return 1;
+
+        } else {
+
+            return childs[0].numberOfLeaves() + childs[1].numberOfLeaves() + childs[2].numberOfLeaves() + childs[3].numberOfLeaves();
+        }
+    }
 
     /*
      * Retourne une ImagePNG correspondant au Quadtree
@@ -230,11 +238,17 @@ public class Quadtree {
     public ImagePNG toPNG(){
 
         ImagePNG png = new ImagePNG(this.img);
-        modifPNG(png, 0, 0, this.img.height());
+        modifPNG_rec(png, 0, 0, this.img.height());
 
         return png;
     }
-    private void modifPNG(ImagePNG png, int x, int y, int squareSize){
+
+    /*
+     * Modifie une image pour qu'elle corresponde au quadtree
+     * @param x, y : entiers représentants la coordonnée (x, y) du point en haut à gauche
+     * @param squareSize : taille du côté du carré de l'image à modifier (en pixel)
+     */
+    private void modifPNG_rec(ImagePNG png, int x, int y, int squareSize){
 
         if (this.color != null) { // feuille ou noeud compressé
 
@@ -275,35 +289,54 @@ public class Quadtree {
 
             for(int i = 0; i < 4; i++) {
 
-                this.childs[i].modifPNG(png, x + matrix[i][0] * newSquareSize, y + matrix[i][1] * newSquareSize, newSquareSize );
+                this.childs[i].modifPNG_rec(png, x + matrix[i][0] * newSquareSize, y + matrix[i][1] * newSquareSize, newSquareSize );
             }
         }
     }
 
+    /*
+     * Retourne une chaîne de caractère représentant le quadtree
+     * Pré-condition : quadtree non nul
+     */
     public String toString(){
 
         if(childs[0] == null){
+
             return ImagePNG.colorToHex(color);
+
         } else {
+
             return "( " + childs[0].toString() + " " + childs[1].toString() + " " + childs[2].toString() + " " + childs[3].toString() + " )";
         }
     }
 
-    public int getSize(){
+    /*
+     *  Pour la classe AVL<Quadtree> : comparaison suivant l'écart colorimétrique pour insérer le Quadtree dans l'AVL
+     */
+    @Override
+    public int compareTo(Object o) {
 
-        int size = 0 ;
-        if(childs[0] == null){
-            size ++ ;
-        } else {
-            for(int i = 0 ; i < 4 ; ++i){
-                size+= childs[i].getSize();
+        if(o instanceof Quadtree){
+
+            Quadtree q = (Quadtree)o;
+
+            if(this.maxColorimetricDifference() > q.maxColorimetricDifference()){
+
+                return 1;
+
+            } else if(this.maxColorimetricDifference() < q.maxColorimetricDifference()){
+
+                return -1;
+
+            } else {
+
+                if(q.equals(o)) {
+                    return 0;
+                }
             }
         }
-        return size ;
+        return -1;
     }
 
-    //library
-    public static int log(int x, int b){
-        return (int) (Math.log(x) / Math.log(b));
-    }
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 }
